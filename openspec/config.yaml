@@ -1,0 +1,43 @@
+schema: spec-driven
+
+# Project context shown to AI when creating OpenSpec artifacts.
+context: |
+  Product: UVL Expense Scanner, a private expense tracker for Urban Vibes Living LLC.
+  Users: exactly two people (the two LLC members, a married couple). The primary user
+  enters most expenses on her iPhone; the other member occasionally enters or edits.
+  Devices: iPhone and iPad (Safari). Android tablets are a nice-to-have, not a target.
+
+  Business: multi-member LLC taxed as a partnership (Form 1065). Two lines of business:
+    - Rental properties (partnership rental real estate, reported on Form 8825). The
+      accountant needs repairs/maintenance kept separate from capital improvements.
+    - Buying and flipping properties (held for sale). Renovation, holding and
+      acquisition costs are added to each property's cost basis.
+  Every project is a property (plus one "General / Overhead" project for costs not tied
+  to a property). Operates mainly in New York State; the state for sales tax is read
+  from each receipt and the user is asked when it cannot be determined.
+  The app organizes records for the accountant; it does not give tax advice.
+
+  Scale: ~20 receipts per month, one calendar (tax) year of data held at a time.
+  Scan accuracy is the top product priority: every AI extraction is reviewed by the
+  user before saving, with low-confidence and inconsistent fields highlighted.
+
+  Tech stack (decided):
+    - Installable Progressive Web App (add to home screen), no App Store, no Mac.
+    - Frontend: TypeScript, React, Vite, vite-plugin-pwa; IndexedDB (Dexie) local cache.
+    - Backend: Cloudflare free tier - Pages (static app), Workers (API),
+      D1 (SQLite database), R2 (receipt images). Cloudflare Access (one-time PIN
+      email login) restricts the app to the two members.
+    - AI extraction: Anthropic Claude API called only from the Worker (the API key
+      never reaches the phone), model claude-opus-5, structured JSON output.
+    - Export: a single .xlsx workbook that opens in Excel, Apple Numbers and
+      Google Sheets.
+  Budget: hosting must fit free tiers; AI spend about $1-2/month with a hard monthly cap.
+
+  Conventions: money stored as integer cents; dates as ISO-8601 (YYYY-MM-DD);
+  all timestamps UTC; plain-language UI copy (users are not technical).
+
+rules:
+  proposal:
+    - Write for non-technical owners; explain tax-relevant choices in plain language.
+  tasks:
+    - Every task that touches extraction must include re-running the accuracy eval.
