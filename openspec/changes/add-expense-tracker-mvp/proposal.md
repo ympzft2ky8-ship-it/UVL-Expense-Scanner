@@ -19,7 +19,7 @@ This is a new app, so everything below is new.
   - The app suggests a category; you confirm it. Your accountant makes the final call. The app organizes records and does not give tax advice.
 - **Full cost including tax.** When a receipt shows tax only as a single total, the app spreads it across the taxable lines. That way every line and every property shows its full cost.
 - **Easy editing.** Any saved field can be changed later, lines can be moved to a different property, and entries can be deleted.
-- **Both phones stay in sync.** Data is stored in a small private cloud backend, so both phones see the same records. You can review and edit offline. Scans made offline are read once you are back online. If both of you change the same entry, the app warns you instead of silently overwriting.
+- **Both phones stay in sync.** Data is stored and synced through Firebase, a free Google-run service that nobody has to set up as a server. You can review and edit offline. Scans made offline are read once you are back online. If both of you change the same entry, the app warns you instead of silently overwriting.
 - **Export.** One tap creates an Excel file (.xlsx) that opens in Excel, Apple Numbers and Google Sheets. It has a full list of expenses and summaries by property, category, vendor and month.
 - **One year at a time.** The app holds the current calendar year. At year-end it creates an archive (the spreadsheet plus a zip of all receipt images) to save in iCloud Drive or Files. The IRS expects these records to be kept for years. After the archive is saved, the app clears the year.
 - **Cost guard.** AI reading costs a few cents per scan (about $1–2 a month at 20 receipts). A monthly spending cap stops scans from ever running up an unexpected bill.
@@ -44,10 +44,10 @@ None. This is the first release.
 
 ## Impact
 
-- **New code:** a web app (the part on the phone) and a small cloud API (the part that stores data and talks to the AI).
+- **New code:** a web app only. There is no separate backend to build, run or maintain.
 - **New accounts needed:**
-  - a free Cloudflare account, for hosting, database, receipt image storage and sign-in;
-  - an Anthropic API account with prepaid credits, for receipt reading.
-- **Ongoing cost:** $0 hosting on free tiers, plus about $1–2/month of AI usage, capped.
-- **Privacy:** receipts and images are stored in the owners' own Cloudflare account. Receipt images are sent to the Anthropic API only to be read.
+  - a free Firebase account (a Google account), for hosting, the database, receipt image storage and sign-in. No credit card is needed.
+  - an Anthropic API account with prepaid credits and a hard spend limit, for receipt reading.
+- **Ongoing cost:** $0 hosting on Firebase's free plan, plus about $1–2/month of AI usage, capped.
+- **Privacy:** receipts and data are stored in the owners' own Firebase project. Receipt images are also sent to the Anthropic API to be read. The Anthropic key is stored on each phone, since there is no server to hide it behind; a monthly spend cap on the Anthropic account limits what a lost or exposed key could run up.
 - **Accuracy test set:** 20–30 real receipts, each with a checked answer key, are kept in the repository (which must stay private) and used to measure reading accuracy before each release.

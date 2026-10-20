@@ -23,15 +23,21 @@ context: |
 
   Tech stack (decided):
     - Installable Progressive Web App (add to home screen), no App Store, no Mac.
-    - Frontend: TypeScript, React, Vite, vite-plugin-pwa; IndexedDB (Dexie) local cache.
-    - Backend: Cloudflare free tier - Pages (static app), Workers (API),
-      D1 (SQLite database), R2 (receipt images). Cloudflare Access (one-time PIN
-      email login) restricts the app to the two members.
-    - AI extraction: Anthropic Claude API called only from the Worker (the API key
-      never reaches the phone), model claude-opus-5, structured JSON output.
+    - Frontend: TypeScript, React, Vite, vite-plugin-pwa.
+    - Backend: none the owners run. Firebase (free Spark plan) provides Hosting
+      (serves the PWA), Firestore (data, with built-in offline persistence and
+      real-time sync - no hand-written sync server) and Storage (receipt
+      images/PDFs). Firebase Authentication (passwordless email-link sign-in)
+      plus Firestore/Storage Security Rules (hardcoded to the two members'
+      emails) restrict access. No Cloud Functions, no billing account.
+    - AI extraction: the installed app calls the Anthropic Claude API directly
+      (there is no server to proxy it through), model claude-opus-5, structured
+      JSON output. The API key is entered once per device and stored on-device;
+      a hard spend limit on the Anthropic account is the real safety net.
     - Export: a single .xlsx workbook that opens in Excel, Apple Numbers and
       Google Sheets.
-  Budget: hosting must fit free tiers; AI spend about $1-2/month with a hard monthly cap.
+  Budget: hosting is Firebase's free Spark plan (no credit card); AI spend about
+    $1-2/month, enforced both in-app and as a hard cap on the Anthropic account.
 
   Conventions: money stored as integer cents; dates as ISO-8601 (YYYY-MM-DD);
   all timestamps UTC; plain-language UI copy (users are not technical).

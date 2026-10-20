@@ -2,9 +2,9 @@
 
 ## 1. Repository scaffolding
 
-- [ ] 1.1 Create npm workspaces (`apps/web`, `apps/api`, `packages/shared`, `evals/extraction`) with TypeScript strict mode, ESLint, Prettier and Vitest. Verify: `npm run lint`, `npm run typecheck` and `npm test` all pass on the empty skeleton.
+- [ ] 1.1 Create npm workspaces (`apps/web`, `packages/shared`, `evals/extraction`) with TypeScript strict mode, ESLint, Prettier and Vitest. Verify: `npm run lint`, `npm run typecheck` and `npm test` all pass on the empty skeleton.
 - [ ] 1.2 Scaffold `apps/web` with Vite + React + `vite-plugin-pwa` (manifest name "UVL Expenses", icons, standalone display). Verify: `npm run build` produces a manifest and service worker, and Lighthouse reports the app as installable.
-- [ ] 1.3 Scaffold `apps/api` as a Cloudflare Worker with `wrangler.toml` bindings for D1 and R2, plus a `GET /api/health` route. Verify: `wrangler dev` responds 200 on `/api/health`.
+- [ ] 1.3 Scaffold `firebase/` (`firebase.json`, `firestore.indexes.json`, empty `firestore.rules` / `storage.rules` that deny all) and install the Firebase CLI as a dev dependency. Verify: `firebase emulators:start` boots the Firestore, Storage and Auth emulators locally.
 - [ ] 1.4 Add a CI workflow that runs lint, typecheck and unit tests on every push. Verify: the workflow passes on the branch.
 
 ## 2. Shared rules (money, tax, checks, categories)
@@ -14,21 +14,21 @@
 - [ ] 2.3 Implement consistency checks a–e from receipt-extraction as pure functions that return flagged fields and plain-language messages. Verify: unit tests for each check, including the "$142.10 vs $124.10" and "receipt from last year" scenarios.
 - [ ] 2.4 Encode the category lists, tax treatment labels and property-type rules from expense-categories. Verify: unit tests confirm each property type only accepts its own categories and every category maps to exactly one treatment label.
 
-## 3. Backend: data, auth and sync
+## 3. Firebase: rules, data model and auth
 
-- [ ] 3.1 Write D1 migrations for the D8 data model, including sync columns and the `changes` table. Verify: `wrangler d1 migrations apply --local` succeeds and a smoke test inserts and reads each table.
-- [ ] 3.2 Add Cloudflare Access JWT verification middleware (signature, audience, issuer) that sets the member email and rejects any request without a valid token. Verify: Worker tests show 401 without a token, 403 for a non-member email and 200 for a member.
-- [ ] 3.3 Implement `GET /api/sync?since=` and a `POST /api/mutations` batch endpoint with `base_version` checking and 409 responses. Verify: Worker tests cover create, update, delete (tombstone), stale-version 409, and edits to different rows never conflicting.
-- [ ] 3.4 Implement signed R2 upload and download for attachments, restricted to signed-in members. Verify: tests show an unsigned or expired URL is refused.
-- [ ] 3.5 Document the one-time Cloudflare setup (D1, R2, Access policy, secrets) in `docs/setup.md` and the `deploy` skill. Verify: following the doc on a fresh Cloudflare account yields a working `/api/health` behind Access.
+- [ ] 3.1 Write `firestore.rules` and `storage.rules` implementing the D8 collections and the D3 member-email allowlist (deny by default; allow read/write only to the two hardcoded member emails, with `request.auth.token.email_verified == true`). Verify: a rules-test suite on the Firebase Emulator Suite covers "member can read/write own data" and "non-member and signed-out requests are denied" for every collection.
+- [ ] 3.2 Implement the Firestore client wrapper in `packages/shared` (typed collection/document helpers matching D8) and the version-checked save transaction from D4. Verify: unit tests against the emulator cover a clean save, a version-mismatch triggering the conflict path, and a tombstone delete.
+- [ ] 3.3 Implement Firebase Authentication email-link sign-in (send link, complete sign-in on link-open, 30+ day persistence) restricted in the UI to the two configured member emails. Verify: emulator-backed tests cover sign-in, a non-member email being refused before a link is even sent, and session persistence across an app restart.
+- [ ] 3.4 Implement Storage upload/download for attachments via the Firebase Storage SDK, governed entirely by `storage.rules`. Verify: an emulator test shows a signed-out or non-member read/write is refused.
+- [ ] 3.5 Document the one-time Firebase setup (project creation, enabling Auth/Firestore/Storage, deploying rules) in `docs/setup.md` and the `deploy` skill. Verify: following the doc on a fresh Firebase project yields a working emulator-tested rules deploy.
 
-## 4. App shell, offline store and sync client
+## 4. App shell and sync client
 
-- [ ] 4.1 Build the Dexie local store mirroring the D8 tables, plus an outbox. Verify: unit tests show writes land locally and queue a mutation.
-- [ ] 4.2 Implement the sync loop: pull on open, focus, pull-to-refresh and every 30 s while visible; push the outbox when online. Verify: a Playwright test with two browser contexts shows a receipt created in one appearing in the other within 60 s.
-- [ ] 4.3 Implement the conflict screen (three-way field merge, auto-merging non-overlapping fields, a picker for overlapping ones). Verify: a Playwright test reproduces the "both members edit the same receipt" scenario.
-- [ ] 4.4 Add the offline / unsent-changes indicator and the Add-to-Home-Screen hint. Verify: a Playwright test in offline mode shows the indicator with the pending count.
-- [ ] 4.5 Manually verify install, sign-in and sync on both members' iPhones and one iPad. Record the results in `docs/device-checks.md`.
+- [ ] 4.1 Initialize the Firestore SDK with offline persistence enabled and wire the D8 collections through the typed wrapper from 3.2. Verify: unit tests show a write made while the emulator is offline is queued and lands once connectivity returns.
+- [ ] 4.2 Wire `onSnapshot` listeners for the active year's collections so changes appear live. Verify: a Playwright test with two browser contexts against the emulator shows a receipt created in one appearing in the other within 60 s.
+- [ ] 4.3 Implement the conflict screen (three-way field merge, auto-merging non-overlapping fields, a picker for overlapping ones) on top of the D4 version-check transaction retry. Verify: a Playwright test reproduces the "both members edit the same receipt" scenario.
+- [ ] 4.4 Add the offline / unsent-changes indicator (from Firestore's pending-writes state) and the Add-to-Home-Screen hint. Verify: a Playwright test in offline mode shows the indicator with the pending count.
+- [ ] 4.5 Manually verify install, sign-in and sync on both members' iPhones and one iPad against the real (non-emulated) Firebase project. Record the results in `docs/device-checks.md`.
 
 ## 5. Properties
 
@@ -40,16 +40,16 @@
 - [ ] 6.1 Build the Scan button and the camera/import flow (file input with `capture`, photo library, PDF, multi-page "Add page"). Verify: Playwright tests with fixture files for image, multi-page PDF and unsupported file.
 - [ ] 6.2 Add OpenCV.js edge detection and perspective correction (lazy-loaded) plus the manual four-corner adjuster. Verify: on 10 angled sample photos, the automatic crop result is visually confirmed, and the manual adjuster works on iPhone.
 - [ ] 6.3 Implement blur, glare, dark and too-small quality checks with Retake / Use anyway. Tune thresholds on the sample set. Verify: at least 90% of deliberately bad sample photos are flagged and fewer than 10% of good ones are.
-- [ ] 6.4 Build the offline "waiting to read" queue persisted in IndexedDB, with automatic upload and reading when online. Verify: a Playwright offline test shows queued scans survive reload and process on reconnect.
+- [ ] 6.4 Build the "waiting to read" state on a receipt document, relying on Firestore's own offline queue (D4) to hold the create until the device is back online, plus a visible indicator while a receipt is queued. Verify: a Playwright offline test against the emulator shows a queued scan survive reload and start reading on reconnect.
 - [ ] 6.5 Add the duplicate-receipt warning (same vendor + date + total, or same vendor + invoice number). Verify: unit and component tests.
 
 ## 7. Receipt extraction
 
 - [ ] 7.1 Define the extraction JSON schema and TypeScript types in `packages/shared`, matching the receipt-extraction fields. Verify: typecheck, and the schema validates the example answer keys in `samples/receipts/examples/`.
-- [ ] 7.2 Write the extraction system prompt and worked examples per the `receipt-extraction` skill, and implement the Worker call (Anthropic TS SDK, `claude-opus-5`, adaptive thinking, structured output, refusal fallbacks, retries). Verify: a Worker test with a mocked API, then **run the accuracy eval** on the test set and commit the report.
+- [ ] 7.2 Write the extraction system prompt and worked examples per the `receipt-extraction` skill, and implement the client-side call (Anthropic TS SDK, `claude-opus-5`, adaptive thinking, structured output, refusal fallbacks, retries) using the on-device key from Settings. Verify: a unit test with a mocked API, then **run the accuracy eval** on the test set and commit the report.
 - [ ] 7.3 Implement the targeted re-read when consistency checks fail. Verify: a unit test with a mocked first response that fails check (b), then **run the accuracy eval** and confirm the unflagged-error count does not increase.
 - [ ] 7.4 Implement state detection handling (NY suggestion plus confirmation when no state is found) and the "not a receipt" path. Verify: component tests, then **run the accuracy eval**.
-- [ ] 7.5 Implement usage cost metering, the monthly cap (default $10), the 80% warning and the Settings display. Verify: Worker tests show a scan is queued with "monthly limit reached" when the cap is hit.
+- [ ] 7.5 Implement usage cost metering against the `usage/{yyyy-mm}` Firestore document, the monthly cap (default $10), the 80% warning, the Settings display, the "Remove AI key from this device" action, and the Anthropic Console hard spend limit as the documented backstop. Verify: emulator-backed tests show a scan is queued with "monthly limit reached" when the cap is hit, and a unit test confirms removing the key blocks automatic reading.
 - [ ] 7.6 Build the accuracy eval harness in `evals/extraction` per D10 and the `extraction-eval` skill. Verify: it runs on the sample test set and produces a markdown report with per-field accuracy and the unflagged-error list. The release gate in receipt-extraction is checked from this report.
 
 ## 8. Review and editing
@@ -81,7 +81,7 @@
 
 - [ ] 12.1 Implement archive creation (spreadsheet, images named by date/vendor/receipt ID, JSON data) as a streaming zip on the device, splitting into parts above about 300 MB. Verify: a test builds an archive from a fixture year and checks its contents against the ledger.
 - [ ] 12.2 Implement the close-year flow: retention message, "I saved it" confirmation, type-the-year confirmation, clearing on backend and devices, keeping properties, vendors and category memory. Verify: a Playwright test for the cancel and confirm scenarios.
-- [ ] 12.3 Implement the 30-day hidden backup with Restore and automatic purge (Worker cron trigger). Verify: Worker tests with a fixed clock.
+- [ ] 12.3 Implement the 30-day hidden backup with Restore, using a Firestore TTL policy on a `purgeAt` field for the automatic purge (no server or scheduled job to run). Verify: an emulator test sets a past `purgeAt` and confirms the backup is gone; a unit test confirms Restore works before `purgeAt`.
 - [ ] 12.4 Add the weekly "year still open" reminder banner. Verify: component test with a fixed clock.
 
 ## 13. Release readiness (integration only)

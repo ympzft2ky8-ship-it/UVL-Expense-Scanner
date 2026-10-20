@@ -1,68 +1,78 @@
 ---
 name: deploy
-description: Set up and deploy UVL Expense Scanner on Cloudflare (Pages, Workers, D1, R2, Access) and manage its secrets, database migrations, rollbacks and free-tier limits. Use when deploying, running migrations, rotating the Anthropic key, changing who can sign in, or debugging production.
+description: Set up and deploy UVL Expense Scanner on Firebase (Hosting, Firestore, Storage, Authentication) and manage Security Rules, the local emulator, rollbacks and free-tier limits. Use when deploying, changing Security Rules, changing who can sign in, or debugging production.
 ---
 
-# Deploy and operate (Cloudflare)
+# Deploy and operate (Firebase)
 
-Design: D2, D3 and the Migration Plan in `openspec/changes/add-expense-tracker-mvp/design.md`. The owners' step-by-step version is `docs/setup.md` (task 3.5). Keep the two consistent.
+Design: D2, D3, D4 and the Migration Plan in `openspec/changes/add-expense-tracker-mvp/design.md`. The owners' step-by-step version is `docs/setup.md` (task 3.5). Keep the two consistent.
 
-> **Status:** written before implementation. Verify each command against the current Wrangler docs when first executing it, and update this file with what actually worked.
+> **Status:** written before implementation. Verify each command against the current Firebase CLI docs when first executing it, and update this file with what actually worked.
 
-## Resources (names are fixed; code and `wrangler.toml` depend on them)
+There is **no server** in this project. Everything below is either a one-time Firebase project setting, a Security Rules file, or a static-file deploy. The Anthropic API key is never part of this deploy — it lives on each member's device (see the `receipt-extraction` skill).
 
-| Resource | Name |
+## Resources
+
+| Resource | Notes |
 |---|---|
-| Pages project (web app) | `uvl-expenses` |
-| Worker (API, routed at `/api/*`) | `uvl-expenses-api` |
-| D1 database | `uvl-expenses` |
-| R2 bucket (images/PDFs) | `uvl-receipts` |
-| Access application | "UVL Expenses", covering the Pages domain and `/api/*` |
+| Firebase project | free **Spark** plan — no credit card, no Cloud Functions |
+| Firebase Hosting | serves the built `apps/web` PWA |
+| Firestore | the D8 data model |
+| Firebase Storage | receipt images/PDFs |
+| Firebase Authentication | email-link sign-in, restricted in the UI and in rules to the two member emails |
 
 ## One-time setup
 
-1. `npx wrangler login`
-2. `npx wrangler d1 create uvl-expenses`, then copy the `database_id` into `apps/api/wrangler.toml`.
-3. `npx wrangler r2 bucket create uvl-receipts`
-4. `npx wrangler secret put ANTHROPIC_API_KEY` (run in `apps/api`). The owners paste the key; never commit it or echo it.
-5. `npx wrangler d1 migrations apply uvl-expenses --remote`
-6. In the Cloudflare dashboard, go to Zero Trust → Access → Applications → add a **Self-hosted** application for the app domain:
-   - identity provider: **One-time PIN**;
-   - policy: Allow, Include → Emails, with exactly the two member addresses;
-   - session duration: 1 month.
-   - Put the Application Audience (AUD) tag and team domain into Worker vars `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN`.
-7. In the Anthropic Console, set a monthly spend limit as a second safety net behind the in-app cap.
+1. Create a Firebase project in the [Firebase console](https://console.firebase.google.com) on the **Spark** (free) plan.
+2. Enable **Authentication → Email link (passwordless sign-in)**.
+3. Enable **Firestore** (production mode) and **Storage**.
+4. `npm install -g firebase-tools` (or use `npx firebase-tools`), then `firebase login`.
+5. `firebase init` in the repo root, selecting Hosting, Firestore and Storage, pointing Hosting's public directory at `apps/web/dist`. This writes `firebase.json`, `firestore.rules`, `firestore.indexes.json` and `storage.rules` under `firebase/` per D11.
+6. Put the two member email addresses directly into `firebase/firestore.rules` and `firebase/storage.rules` (see D3 — this is deliberate; there is no admin UI for a fixed, 2-person allowlist).
+7. `firebase deploy --only firestore:rules,storage:rules`
+8. Copy the project's Firebase web config (apiKey, projectId, etc. — these are public identifiers, not secrets) into `apps/web`'s config. Firebase config values are safe to commit; Security Rules are the actual access control.
+9. In the Anthropic Console, each owner (or the household account used for billing) sets a **hard monthly spend limit**. Each member then enters their own API key in the app's Settings on their own device — this step is per-device, not part of deploy.
 
 ## Routine deploy
 
 ```
 npm ci && npm run lint && npm run typecheck && npm test
 npm run build -w apps/web
-npx wrangler d1 migrations apply uvl-expenses --remote   # only when migrations changed
-npx wrangler deploy -c apps/api/wrangler.toml
-npx wrangler pages deploy apps/web/dist --project-name uvl-expenses
+firebase deploy --only firestore:rules,storage:rules   # only when rules changed
+firebase deploy --only hosting
 ```
 
-- Deploy the API before the web app when both change, so the new client never talks to an old API.
-- Migrations must be **additive** (add columns or tables). A destructive change needs its own OpenSpec change with a data plan.
+- Deploy rules before Hosting when both changed, so the new client never runs against rules that don't yet match it.
+- Firestore document shapes change additively by convention (new optional fields only) — no migration step exists or is needed.
+
+## Local development and testing Security Rules
+
+```
+firebase emulators:start
+```
+
+Starts local Firestore, Storage and Auth emulators. Run the rules-test suite (task 3.1) against the emulator before every rules deploy — never test rules changes against the production project.
 
 ## Rollback
 
-- Worker: `npx wrangler rollback` (to the previous version).
-- Pages: re-activate the previous deployment from the dashboard or CLI.
-- D1: use Time Travel restore (`npx wrangler d1 time-travel restore uvl-expenses --timestamp=<ISO>`). This rewinds **all** data, so confirm with the owners first.
+- Hosting: `firebase hosting:rollback` restores the previous release immediately.
+- Firestore/Storage rules: `firebase deploy --only firestore:rules,storage:rules` with the previous version checked out, or restore the previous rules from the Firebase console's rules history.
+- There is no database to roll back — Firestore data isn't versioned by deploys, only by the app's own `version` field (D4) and the year-end archive/backup (year-end-archive spec).
 
 ## Changing who can sign in
 
-Edit the Access policy's email list. No code change or deploy is needed. The Worker also checks the email claim against the `MEMBER_EMAILS` var, so keep both in sync.
+Edit the hardcoded email list in `firebase/firestore.rules` and `firebase/storage.rules`, redeploy both, and update the matching allowlist in the app's sign-in UI. There is no Cloud Function or Admin SDK step — this is why the emails are kept in the rules files rather than a database.
 
-## Free-tier limits to watch
+## Free-tier (Spark) limits to watch
 
-- Workers free plan: about 10 ms CPU per request. Keep heavy work (zip, xlsx, base64) off the Worker. If it's exceeded, Workers Paid costs $5/month; ask the owners first.
-- D1: 5 GB. R2: 10 GB storage, free egress. Expected use is about 150 MB of images a year.
-- Access free plan: up to 50 users.
+- Firestore: 1 GiB stored, 50K reads / 20K writes / 20K deletes per day — all far above ~20 receipts/month plus two people's casual usage.
+- Storage: 5 GB stored, 1 GB/day download — expect roughly 150 MB of images a year.
+- Hosting: 10 GB stored, 360 MB/day transfer.
+- Authentication: email-link sign-in has no meaningful cap at this scale.
+- If any of these are ever approached, the project can move to the paid **Blaze** plan (still effectively free at this volume — it only changes the billing model, not the price, until usage is much higher). That also unlocks Cloud Functions, which is the path to the Cloud Function key-proxy noted as an open question in design.md.
 
 ## Never
 
-- Commit secrets, `.dev.vars`, or real receipt images to a public repository.
-- Run `--remote` migrations or a D1 restore without telling the owners.
+- Commit the Anthropic API key anywhere. It belongs on-device only, entered through Settings.
+- Loosen `firestore.rules` or `storage.rules` to `allow read, write: if true;` even "temporarily" — those files are the entire access control for this app.
+- Deploy a rules change that hasn't passed the emulator rules-test suite.

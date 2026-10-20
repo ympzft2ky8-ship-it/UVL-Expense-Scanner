@@ -19,10 +19,10 @@ The app SHALL be installable to the iPhone and iPad home screen from Safari and 
 - **THEN** the app shows a short, dismissible hint explaining how to add it to the home screen
 
 ### Requirement: Members-only access
-The system SHALL allow access only to email addresses on the members list (the two LLC members), using a one-time code sent by email, and SHALL deny all data access to anyone else.
+The system SHALL allow access only to email addresses on the members list (the two LLC members), using a sign-in link sent by email, and SHALL deny all data access to anyone else, including at the data layer so a modified or compromised client cannot bypass the restriction.
 
 #### Scenario: Member signs in
-- **WHEN** a member enters their email address and the one-time code they received
+- **WHEN** a member enters their email address and taps the sign-in link sent to it, on the same device
 - **THEN** the member is signed in and sees the current year's data
 
 #### Scenario: Non-member is refused
@@ -41,7 +41,7 @@ The system SHALL record which member created and which member last changed every
 - **THEN** the screen shows who added it and who last changed it, with dates
 
 ### Requirement: Sync between devices
-The system SHALL store all data in the shared cloud backend and SHALL show changes made on one member's device on the other member's devices within 1 minute of the other device being open and online.
+The system SHALL store all data in a shared store reachable from both members' devices and SHALL show changes made on one member's device on the other member's devices within 1 minute of the other device being open and online.
 
 #### Scenario: New receipt appears on the other phone
 - **WHEN** member A saves a receipt while online
@@ -78,8 +78,13 @@ The system SHALL detect when a member saves a change to a record that was change
 - **THEN** both changes are saved without any conflict prompt
 
 ### Requirement: Data privacy in transit and at rest
-The system SHALL use encrypted connections for all traffic. It SHALL keep the AI service key only on the backend, never on devices. It SHALL serve receipt images only to signed-in members.
+The system SHALL use encrypted connections for all traffic. It SHALL serve receipt images and data only to signed-in members. It SHALL store the AI service key only in the device's own on-device storage, never hardcoded in the app or committed to source control, and SHALL let a member remove it from a device.
 
 #### Scenario: Image link cannot be opened by outsiders
 - **WHEN** someone who is not signed in opens the web address of a receipt image
 - **THEN** the image is not returned
+
+#### Scenario: Remove the AI key from a device
+- **WHEN** a member chooses "Remove AI key from this device" in Settings
+- **THEN** the key is deleted from that device
+- **AND** that device can no longer read receipts automatically until a key is entered again, though it can still view and edit existing data

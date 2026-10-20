@@ -13,9 +13,9 @@ The behavior contract is `openspec/changes/add-expense-tracker-mvp/specs/receipt
 |---|---|
 | Output JSON schema + TS types | `packages/shared/src/extraction/schema.ts` |
 | Consistency checks (a–e) | `packages/shared/src/extraction/checks.ts` |
-| System prompt + worked examples | `apps/api/src/extraction/prompt.ts` |
-| Claude API call, re-read, cost metering | `apps/api/src/extraction/extract.ts` |
-| Price table, model id, effort | `apps/api/src/config.ts` |
+| System prompt + worked examples | `packages/shared/src/extraction/prompt.ts` |
+| Claude API call, re-read, cost metering | `apps/web/src/extraction/extract.ts` |
+| Price table, model id, effort | `apps/web/src/config.ts` |
 
 The eval harness (`evals/extraction`) imports the **same** prompt and schema modules. Never fork a copy for the eval.
 
@@ -31,10 +31,10 @@ The eval harness (`evals/extraction`) imports the **same** prompt and schema mod
 
 Before touching the call itself, load the `claude-api` skill for the current SDK patterns.
 
-- SDK: `@anthropic-ai/sdk` (TypeScript), called only from the Worker. The key is the Worker secret `ANTHROPIC_API_KEY` and is never sent to the client.
+- SDK: `@anthropic-ai/sdk` (TypeScript), called **directly from the client app** — there is no backend (see design D6). The key is entered by the member in Settings and stored in the browser's IndexedDB; never hardcode it or commit it. Treat this as a real trade-off, not an oversight: the mitigations are a hard spend limit on the Anthropic Console account, easy key rotation there, and the "Remove AI key from this device" action.
 - Model `claude-opus-5`, `thinking: {type: "adaptive"}`, `output_config: {effort: "high", format: {type: "json_schema", ...}}`.
 - Refusal fallbacks enabled (`fallbacks: "default"` with its beta header). Always check `stop_reason` before reading content.
-- Images: prefer a short-lived signed R2 URL as the image source, so the Worker does not base64 large files (free-tier CPU limit). Send PDFs as `document` blocks.
+- Images: send the captured image as a base64 `image` content block, or the PDF as a `document` block, directly in the request — there is no server-side size constraint to design around. Still respect the long-edge cap from D5 to control token cost.
 - Tall receipts (aspect ratio above about 3:1) are sent as overlapping segments in one request, in top-to-bottom order, with a text note saying they are consecutive parts of one receipt.
 - Changing the model (for example to `claude-sonnet-5` to save cost) is the owners' decision. Only propose it with eval numbers showing no accuracy loss.
 
@@ -68,7 +68,7 @@ Mark a field `low` when it is:
 
 Everything else is `high`.
 
-## Consistency checks (implemented in `checks.ts`, run on Worker and client)
+## Consistency checks (implemented in `checks.ts`, run entirely client-side and in the eval harness)
 
 - a. qty × unit price = line amount (±$0.01)
 - b. Σ lines − discounts = subtotal (±$0.01)
@@ -78,7 +78,7 @@ Everything else is `high`.
 
 ## Targeted re-read
 
-If check a, b or c fails, make **one** follow-up call with the same document plus a plain statement of the discrepancy. For example: "The line amounts you read sum to $142.10 but the subtotal you read is $124.10. Re-read the subtotal and each line amount carefully." Accept the new values only if the checks now pass; otherwise keep the first result with the fields flagged. Never loop more than once.
+If check a, b or c fails, make **one** follow-up call (from the client, same as the first) with the same document plus a plain statement of the discrepancy. For example: "The line amounts you read sum to $142.10 but the subtotal you read is $124.10. Re-read the subtotal and each line amount carefully." Accept the new values only if the checks now pass; otherwise keep the first result with the fields flagged. Never loop more than once.
 
 ## Money
 
