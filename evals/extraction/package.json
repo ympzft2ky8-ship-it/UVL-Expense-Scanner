@@ -1,0 +1,16 @@
+{
+  "name": "@uvl/eval-extraction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "node --experimental-strip-types run.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@uvl/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}
