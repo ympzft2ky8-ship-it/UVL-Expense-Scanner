@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// These rules are the whole access control for the app: only the two members of
+// Urban Vibes Living, signed in with a verified email address, can read or write
+// anything. Test every change with `npm run test:rules` before deploying.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isMember() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          // MEMBERS: replace with the two members' email addresses, lowercase.
+          'member-one@example.com',
+          'member-two@example.com'
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if isMember();
+    }
+  }
+}
