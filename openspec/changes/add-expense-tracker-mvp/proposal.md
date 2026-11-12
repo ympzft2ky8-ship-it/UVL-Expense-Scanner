@@ -8,9 +8,9 @@ Urban Vibes Living LLC tracks property expenses by hand. At tax time that means 
 
 This is a new app, so everything below is new.
 
-- **Installable phone app (web app).** Opens from the iPhone/iPad home screen like a normal app. No App Store, no Mac, no Apple developer fee. Only the two LLC members can sign in.
+- **Installable phone app (web app).** Opens from the iPhone/iPad home screen like a normal app. No App Store, no Mac, no Apple developer fee. Only the two LLC members can open the records. Each signs in with an email and password and confirms the email once.
 - **Properties as projects.** Each project is a property, marked as a *Rental* or a *Flip*, plus one built-in *General / Overhead* project for costs not tied to a property.
-- **Scan a receipt or invoice.** Take a photo in the app, or import a photo or PDF (for example a PDF made with the iPhone Notes "Scan Documents" feature, or an invoice emailed as a PDF). The app straightens the image and asks for a retake if it is blurry.
+- **Scan a receipt or invoice.** Take a photo in the app, or import a photo or PDF (for example a PDF made with the iPhone Notes "Scan Documents" feature, or an invoice emailed as a PDF). The app asks for a retake if the photo is blurry, dark or has glare. (Automatic straightening of angled photos is left for a later version.)
 - **Automatic reading.** An AI model reads the vendor, the vendor's contact details, the date, each line item and its price, whether each line is labor or materials, the sales tax and the total. It also reads the state from the vendor's address, and asks if it can't find one (New York is suggested).
 - **Always reviewed before saving.** Every scan opens a review screen. Fields the AI is unsure about are highlighted, and so is anything that doesn't add up (for example, lines plus tax not matching the printed total).
 - **Tax-friendly categories.**
@@ -30,7 +30,7 @@ This is a new app, so everything below is new.
 
 - `access-and-sync`: sign-in limited to the two members; sync between phones and tablets; offline use; conflict warnings.
 - `properties`: create, edit and archive projects (properties) of type Rental or Flip, plus the built-in General / Overhead project.
-- `receipt-capture`: camera capture, photo/PDF import, image straightening, quality checks, offline scan queue.
+- `receipt-capture`: camera capture, photo/PDF import, multi-page receipts, quality checks, offline scan queue, duplicate warning.
 - `receipt-extraction`: AI reading of receipt and invoice data, confidence flags, math and date consistency checks, state detection, labor/materials classification, monthly AI spending cap.
 - `expense-review`: the review screen after each scan, and editing, splitting, moving and deleting saved entries.
 - `expense-categories`: category list and tax treatment rules for rentals, flips and overhead, with suggestions the user confirms.
@@ -46,8 +46,8 @@ None. This is the first release.
 
 - **New code:** a web app only. There is no separate backend to build, run or maintain.
 - **New accounts needed:**
-  - a free Firebase account (a Google account), for hosting, the database, receipt image storage and sign-in. No credit card is needed.
+  - a free Firebase account (a Google account), for hosting, the database (which also holds the receipt images) and sign-in. No credit card is needed.
   - an Anthropic API account with prepaid credits and a hard spend limit, for receipt reading.
 - **Ongoing cost:** $0 hosting on Firebase's free plan, plus about $1–2/month of AI usage, capped.
-- **Privacy:** receipts and data are stored in the owners' own Firebase project. Receipt images are also sent to the Anthropic API to be read. The Anthropic key is stored on each phone, since there is no server to hide it behind; a monthly spend cap on the Anthropic account limits what a lost or exposed key could run up.
+- **Privacy:** receipts and data are stored in the owners' own Firebase project. Receipt images are also sent to the Anthropic API to be read. The Anthropic key is saved once with your records, where only the two of you can reach it, so both phones can use it. There is no server to hide it behind, so a monthly spend limit on the Anthropic account caps what a leaked key could cost.
 - **Accuracy test set:** 20–30 real receipts, each with a checked answer key, are kept in the repository (which must stay private) and used to measure reading accuracy before each release.

@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { shortId } from './names.ts';
 import { CATEGORIES, groupBy, NOT_TAX_ADVICE, PROPERTY_TYPE_LABEL, sumRows, taxTreatment, type LedgerRow, type Property, type PropertyType } from '@uvl/shared';
 
 /** Column order of the Expenses sheet. Keep stable: the accountant may build on it. */
@@ -59,9 +60,6 @@ function dateCell(iso: string): Date {
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1));
 }
 
-export function shortId(id: string): string {
-  return id.slice(0, 8).toUpperCase();
-}
 
 export interface WorkbookInput {
   year: number;
@@ -72,10 +70,6 @@ export interface WorkbookInput {
   exportedAt: Date;
 }
 
-export function exportFileName(year: number, date: Date): string {
-  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  return `UVL-Expenses-${year}-${iso}.xlsx`;
-}
 
 export function buildWorkbook(input: WorkbookInput): ExcelJS.Workbook {
   const { rows, year } = input;

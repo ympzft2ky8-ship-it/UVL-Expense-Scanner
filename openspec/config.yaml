@@ -21,23 +21,31 @@ context: |
   Scan accuracy is the top product priority: every AI extraction is reviewed by the
   user before saving, with low-confidence and inconsistent fields highlighted.
 
-  Tech stack (decided):
+  Tech stack (as built):
     - Installable Progressive Web App (add to home screen), no App Store, no Mac.
-    - Frontend: TypeScript, React, Vite, vite-plugin-pwa.
-    - Backend: none the owners run. Firebase (free Spark plan) provides Hosting
-      (serves the PWA), Firestore (data, with built-in offline persistence and
-      real-time sync - no hand-written sync server) and Storage (receipt
-      images/PDFs). Firebase Authentication (passwordless email-link sign-in)
-      plus Firestore/Storage Security Rules (hardcoded to the two members'
-      emails) restrict access. No Cloud Functions, no billing account.
-    - AI extraction: the installed app calls the Anthropic Claude API directly
-      (there is no server to proxy it through), model claude-opus-5, structured
-      JSON output. The API key is entered once per device and stored on-device;
-      a hard spend limit on the Anthropic account is the real safety net.
-    - Export: a single .xlsx workbook that opens in Excel, Apple Numbers and
-      Google Sheets.
+    - Frontend: TypeScript, React, Vite, vite-plugin-pwa (apps/web). Shared rules
+      in packages/shared (money, tax allocation, checks, categories, ledger rows,
+      the reading prompt, schema and API call).
+    - Backend: none the owners run. Firebase free Spark plan only: Hosting,
+      Firestore (all data, including receipt images stored as chunked documents;
+      Firebase Storage is NOT used because it needs the paid plan) and
+      Authentication (email + password, email verified once). Firestore Security
+      Rules restrict everything to the two members' verified emails. No Cloud
+      Functions, no billing account.
+    - Sync: Firestore listeners and offline cache; edits to existing records go
+      through version-checked transactions with a three-way merge, and an outbox
+      for edits made offline.
+    - AI reading: the app calls the Anthropic API directly with the official
+      TypeScript SDK, model claude-opus-5-5, adaptive thinking, effort high,
+      structured JSON output. The API key is saved once in the members-only
+      settings record. A hard spend limit on the Anthropic account is the real
+      safety net.
+    - Export: a single .xlsx workbook (ExcelJS) that opens in Excel, Numbers and
+      Google Sheets. Year-end archive: zip of the workbook, images and data.
+    - Tests: Vitest (unit), rules tests and Playwright end-to-end tests against
+      the Firebase emulators.
   Budget: hosting is Firebase's free Spark plan (no credit card); AI spend about
-    $1-2/month, enforced both in-app and as a hard cap on the Anthropic account.
+    $1-2/month, enforced in-app and as a hard cap on the Anthropic account.
 
   Conventions: money stored as integer cents; dates as ISO-8601 (YYYY-MM-DD);
   all timestamps UTC; plain-language UI copy (users are not technical).

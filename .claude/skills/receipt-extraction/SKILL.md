@@ -12,12 +12,13 @@ The behavior contract is `openspec/changes/add-expense-tracker-mvp/specs/receipt
 | What | Path |
 |---|---|
 | Output JSON schema + TS types | `packages/shared/src/extraction/schema.ts` |
-| Consistency checks (a–e) | `packages/shared/src/extraction/checks.ts` |
-| System prompt + worked examples | `packages/shared/src/extraction/prompt.ts` |
-| Claude API call, re-read, cost metering | `apps/web/src/extraction/extract.ts` |
-| Price table, model id, effort | `apps/web/src/config.ts` |
+| Reading instructions (system prompt, re-read wording) | `packages/shared/src/extraction/prompt.ts` |
+| Claude API call, re-read, cost, price table, default model | `packages/shared/src/extraction/extract.ts` |
+| Consistency checks (a–e) | `packages/shared/src/checks.ts` |
+| Queue, claiming a scan, vendor match, category suggestions | `apps/web/src/receipts.ts` |
+| Photo resizing, quality checks, tall-receipt segments | `apps/web/src/capture/image.ts` |
 
-The eval harness (`evals/extraction`) imports the **same** prompt and schema modules. Never fork a copy for the eval.
+The eval harness (`evals/extraction`) calls the same `extractReceipt` function. Never fork a copy for the eval.
 
 ## Non-negotiable rules
 
@@ -31,12 +32,13 @@ The eval harness (`evals/extraction`) imports the **same** prompt and schema mod
 
 Before touching the call itself, load the `claude-api` skill for the current SDK patterns.
 
-- SDK: `@anthropic-ai/sdk` (TypeScript), called **directly from the client app** — there is no backend (see design D6). The key is entered by the member in Settings and stored in the browser's IndexedDB; never hardcode it or commit it. Treat this as a real trade-off, not an oversight: the mitigations are a hard spend limit on the Anthropic Console account, easy key rotation there, and the "Remove AI key from this device" action.
-- Model `claude-opus-5`, `thinking: {type: "adaptive"}`, `output_config: {effort: "high", format: {type: "json_schema", ...}}`.
-- Refusal fallbacks enabled (`fallbacks: "default"` with its beta header). Always check `stop_reason` before reading content.
-- Images: send the captured image as a base64 `image` content block, or the PDF as a `document` block, directly in the request — there is no server-side size constraint to design around. Still respect the long-edge cap from D5 to control token cost.
-- Tall receipts (aspect ratio above about 3:1) are sent as overlapping segments in one request, in top-to-bottom order, with a text note saying they are consecutive parts of one receipt.
-- Changing the model (for example to `claude-sonnet-5` to save cost) is the owners' decision. Only propose it with eval numbers showing no accuracy loss.
+- SDK: `@anthropic-ai/sdk` (TypeScript), called **directly from the app**; there is no backend (design D6). The key comes from the members-only `config/app` record, entered in Settings. Never hardcode or commit a key. The mitigations for a client-side key are the hard spend limit on the Anthropic account, the in-app monthly cap, and "Remove key".
+- Model `claude-opus-5-5` (`DEFAULT_MODEL`), `thinking: {type: "adaptive"}`, `output_config: {effort: "high", format: {type: "json_schema", schema}}`. Effort must be set explicitly: this model's default is `medium`.
+- The call goes through `client.beta.messages.create` with `betas: ["server-side-fallback-2026-07-01"]` and `fallbacks: "default"`. Always check `stop_reason` (`refusal`, `max_tokens`) before reading content.
+- Photos are sent as base64 `image` blocks and PDFs as `document` blocks, before the text instruction.
+- Tall receipts (taller than 3× their width) are sent as overlapping segments, top to bottom.
+- The schema has every object closed and every property required; optional values are `null`. The category suggestion is returned for all three property types because the property is chosen after reading.
+- Changing the model (for example to `claude-sonnet-5-5` at half the cost) is the owners' decision. Only propose it with eval numbers showing no accuracy loss. When the model changes, update `PRICES`.
 
 ## Classification rules the prompt must encode
 
@@ -68,7 +70,7 @@ Mark a field `low` when it is:
 
 Everything else is `high`.
 
-## Consistency checks (implemented in `checks.ts`, run entirely client-side and in the eval harness)
+## Consistency checks (`packages/shared/src/checks.ts`, used by the app and the eval)
 
 - a. qty × unit price = line amount (±$0.01)
 - b. Σ lines − discounts = subtotal (±$0.01)

@@ -19,15 +19,19 @@ The app SHALL be installable to the iPhone and iPad home screen from Safari and 
 - **THEN** the app shows a short, dismissible hint explaining how to add it to the home screen
 
 ### Requirement: Members-only access
-The system SHALL allow access only to email addresses on the members list (the two LLC members), using a sign-in link sent by email, and SHALL deny all data access to anyone else, including at the data layer so a modified or compromised client cannot bypass the restriction.
+The system SHALL allow access only to the two LLC members. A member signs in with their email address and a password, and SHALL confirm the email address once by opening a link sent to it. The system SHALL deny all data access to anyone else, and SHALL enforce this at the data store, so that a modified app cannot bypass it.
 
 #### Scenario: Member signs in
-- **WHEN** a member enters their email address and taps the sign-in link sent to it, on the same device
+- **WHEN** a member whose email address is confirmed enters their email and password
 - **THEN** the member is signed in and sees the current year's data
 
 #### Scenario: Non-member is refused
-- **WHEN** someone enters an email address that is not on the members list
-- **THEN** no code is sent and no data is shown
+- **WHEN** someone creates an account with an email address that is not on the members list and confirms it
+- **THEN** no data is shown and nothing can be saved
+
+#### Scenario: Unconfirmed member address is refused
+- **WHEN** someone creates an account with a member's email address but cannot open the confirmation link
+- **THEN** no data is shown
 
 #### Scenario: Session lasts long enough for daily use
 - **WHEN** a member has signed in on a device
@@ -48,9 +52,9 @@ The system SHALL store all data in a shared store reachable from both members' d
 - **AND** member B opens the app on their phone while online
 - **THEN** member B sees the new receipt within 1 minute
 
-#### Scenario: Pull to refresh
-- **WHEN** a member pulls down on the receipts list
-- **THEN** the app fetches the latest changes immediately
+#### Scenario: Changes arrive without reloading
+- **WHEN** member A changes a receipt that member B has open and has not edited
+- **THEN** member B's screen shows the new values without any action
 
 ### Requirement: Offline use
 The system SHALL let a member view, edit and create entries while offline and SHALL send those changes to the backend automatically when the device is back online.
@@ -78,13 +82,17 @@ The system SHALL detect when a member saves a change to a record that was change
 - **THEN** both changes are saved without any conflict prompt
 
 ### Requirement: Data privacy in transit and at rest
-The system SHALL use encrypted connections for all traffic. It SHALL serve receipt images and data only to signed-in members. It SHALL store the AI service key only in the device's own on-device storage, never hardcoded in the app or committed to source control, and SHALL let a member remove it from a device.
+The system SHALL use encrypted connections for all traffic. It SHALL make receipt images and data readable only by signed-in members. It SHALL keep the AI service key only in the members-only data store, never in the app's code or the source repository, and SHALL let a member remove or replace it.
 
-#### Scenario: Image link cannot be opened by outsiders
-- **WHEN** someone who is not signed in opens the web address of a receipt image
-- **THEN** the image is not returned
+#### Scenario: Records cannot be read by outsiders
+- **WHEN** someone who is not a signed-in member requests a receipt, its image or the AI key from the data store
+- **THEN** nothing is returned
 
-#### Scenario: Remove the AI key from a device
-- **WHEN** a member chooses "Remove AI key from this device" in Settings
-- **THEN** the key is deleted from that device
-- **AND** that device can no longer read receipts automatically until a key is entered again, though it can still view and edit existing data
+#### Scenario: Key entered once
+- **WHEN** one member saves the AI key in Settings
+- **THEN** the other member's phone can read receipts without the key being entered again
+
+#### Scenario: Remove the AI key
+- **WHEN** a member chooses "Remove key" in Settings
+- **THEN** the key is deleted for both members
+- **AND** new scans wait unread until a key is entered again, while existing data stays viewable and editable

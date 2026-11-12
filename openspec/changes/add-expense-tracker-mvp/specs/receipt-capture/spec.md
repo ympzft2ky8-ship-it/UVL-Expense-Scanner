@@ -35,19 +35,8 @@ The system SHALL let a member add more photos to the same receipt before it is r
 - **WHEN** a member photographs the top half of a long receipt, taps "Add page", and photographs the bottom half
 - **THEN** both photos are read together as one receipt
 
-### Requirement: Straighten and crop
-The system SHALL automatically detect the receipt's edges and straighten and crop the photo. It SHALL let the member adjust the four corners by hand when detection is wrong or fails.
-
-#### Scenario: Automatic crop
-- **WHEN** a photo is taken of a receipt lying at an angle on a table
-- **THEN** the confirmation screen shows the receipt cropped and straightened
-
-#### Scenario: Manual corner adjustment
-- **WHEN** edge detection fails or the member taps "Adjust"
-- **THEN** the member can drag four corner handles to mark the receipt, and the image is straightened to those corners
-
 ### Requirement: Image quality check
-The system SHALL check each captured photo for blur, glare, darkness and too-small text before reading. It SHALL warn the member and offer a retake when any check fails. It SHALL still let the member continue.
+The system SHALL check each captured photo for blur, glare, darkness and too-small size before reading. It SHALL warn the member and offer a retake when any check fails. It SHALL still let the member continue.
 
 #### Scenario: Blurry photo
 - **WHEN** a member takes a blurry photo

@@ -38,7 +38,8 @@ npm run eval:extraction -- --split test [--model claude-opus-5] [--effort high] 
 
 - **This calls the paid API.** A full run of 30 receipts costs about $2–3. Tell the user the estimated cost and get approval before running.
 - Output: `evals/extraction/reports/<date>-<label>.md` plus a raw JSON of every result.
-- To compare two versions, run both with different `--label` values. Then run `npm run eval:compare -- <reportA> <reportB>`.
+- To compare two versions, run both with different `--label` values and put the two headline tables side by side in the PR description.
+- It needs `ANTHROPIC_API_KEY` in the environment (in a cloud session, ask for it through the credential request, never in chat).
 
 ## Scoring rules
 

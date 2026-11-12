@@ -3,7 +3,8 @@ import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import { groupBy, ledgerRows, sumRows } from '@uvl/shared';
 import { line, property, receipt } from '../../../../packages/shared/test/fixtures.ts';
-import { EXPENSE_HEADERS, exportFileName, workbookBytes } from './workbook.ts';
+import { exportFileName } from './names.ts';
+import { EXPENSE_HEADERS, workbookBytes } from './workbook.ts';
 
 const properties = [property('oak', '12 Oak St', 'rental'), property('elm', '45 Elm Ave', 'flip'), property('overhead', 'General / Overhead', 'overhead')];
 

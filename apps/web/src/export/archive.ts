@@ -1,7 +1,8 @@
-import JSZip from 'jszip';
 import { ledgerRows, type Property, type Receipt, type Vendor } from '@uvl/shared';
 import { loadPages } from '../blobs.ts';
-import { shortId, workbookBytes } from './workbook.ts';
+import { shortId } from './names.ts';
+
+export { archiveFileName } from './names.ts';
 
 export interface YearData {
   year: number;
@@ -16,6 +17,8 @@ export function yearReceipts(receipts: Receipt[], year: number): Receipt[] {
 
 export async function exportWorkbook(data: YearData, exportedAt = new Date()): Promise<Uint8Array> {
   const saved = yearReceipts(data.receipts, data.year);
+  // The spreadsheet library is large, so it is loaded only when an export is made.
+  const { workbookBytes } = await import('./workbook.ts');
   return workbookBytes({
     year: data.year,
     rows: ledgerRows(data.receipts, data.properties, data.year),
@@ -41,6 +44,7 @@ export function imageFileName(r: Pick<Receipt, 'id' | 'date' | 'vendorName'>, pa
  * the year could be rebuilt. Images are stored uncompressed (JPEGs do not shrink).
  */
 export async function buildArchive(data: YearData, onProgress?: (done: number, total: number) => void): Promise<Blob> {
+  const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   const saved = yearReceipts(data.receipts, data.year);
   zip.file(`UVL-Expenses-${data.year}.xlsx`, await exportWorkbook(data));
@@ -58,10 +62,6 @@ export async function buildArchive(data: YearData, onProgress?: (done: number, t
     onProgress?.(++done, saved.length);
   }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-}
-
-export function archiveFileName(year: number): string {
-  return `UVL-Expenses-${year}-Archive.zip`;
 }
 
 /** Hand a file to the phone's share sheet (Save to Files, Mail, AirDrop); download elsewhere. */

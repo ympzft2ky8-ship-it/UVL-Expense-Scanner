@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatCents, groupBy, ledgerRows, NOT_TAX_ADVICE, sumRows } from '@uvl/shared';
 import { archiveFileName, buildArchive, exportWorkbook, shareOrDownload, yearReceipts } from '../export/archive.ts';
-import { exportFileName } from '../export/workbook.ts';
+import { exportFileName } from '../export/names.ts';
 import { clearYear, markArchived } from '../receipts.ts';
 import { openYears, reportError, useAppState } from '../store.ts';
 import { Field } from '../ui.tsx';
