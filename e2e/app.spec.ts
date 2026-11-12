@@ -250,7 +250,8 @@ test('the monthly limit stops reading; the scan waits', async () => {
   await page.goto('/#/settings');
   await page.getByTestId('cap-input').fill('10');
   await page.getByTestId('save-cap').click();
-  await page.goto('/');
+  await expect(page.getByTestId('usage')).toContainText('of $10.00');
+  await page.getByRole('link', { name: 'Receipts' }).click();
   await expect(page.getByTestId('review-list')).toContainText('The Home Depot', { timeout: 20_000 });
   expect(calls).toHaveLength(1);
   await page.getByTestId('review-list').getByRole('link').click();
@@ -301,12 +302,13 @@ test.describe('two phones', () => {
     await other.page.getByTestId('receipt-list').getByRole('link', { name: /Staples/ }).click();
     await expect(other.page.getByTestId('vendor-input')).toHaveValue('Staples');
 
+    // The second phone has started editing before the first one saves.
+    await other.page.getByLabel('Invoice / receipt #').fill('INV-9');
     await page.getByLabel('Notes').fill('note from one');
     await page.getByTestId('save-button').click();
     await expect(page.getByTestId('receipt-list')).toBeVisible();
 
     await other.page.getByLabel('Notes').fill('note from two');
-    await other.page.getByLabel('Invoice / receipt #').fill('INV-9');
     await other.page.getByTestId('save-button').click();
     const dialog = other.page.getByTestId('conflict-dialog');
     await expect(dialog).toContainText('Notes');
@@ -342,7 +344,10 @@ test.describe('two phones', () => {
   });
 
   test('a scan made offline is kept and read once back online', async () => {
-    const calls = await mockClaude(other.context, [reading({ vendor_name: 'Lowes', invoice_number: 'OFF-1', date: `${YEAR}-05-05` })]);
+    // Whichever phone is online first reads it; it must be read exactly once.
+    const lowes = [reading({ vendor_name: 'Lowes', invoice_number: 'OFF-1', date: `${YEAR}-05-05` })];
+    const calls = await mockClaude(other.context, lowes);
+    const callsOnFirstPhone = await mockClaude(context, lowes);
     await other.page.goto('/');
     await other.context.setOffline(true);
     await importReceipt(other.page, image);
@@ -351,7 +356,7 @@ test.describe('two phones', () => {
     await other.context.setOffline(false);
     await expect(other.page.getByTestId('receipt-form')).toBeVisible({ timeout: 30_000 });
     await expect(other.page.getByTestId('vendor-input')).toHaveValue('Lowes');
-    expect(calls).toHaveLength(1);
+    expect(calls.length + callsOnFirstPhone.length).toBe(1);
     await other.page.getByTestId('delete-button').click();
   });
 });
@@ -361,6 +366,7 @@ test('changing a property from flip to rental flags its categories', async () =>
   await page.getByRole('button', { name: 'Edit 45 Elm Ave' }).click();
   await page.getByTestId('property-type').selectOption('rental');
   await page.getByTestId('property-save').click();
+  await expect(page.getByTestId('property-form')).toHaveCount(0);
   await page.goto('/');
   await page.getByTestId('filter-attention').click();
   await expect(page.getByTestId('receipt-list')).toContainText('ABC Plumbing Inc');
@@ -448,14 +454,16 @@ test('close last year: archive, confirm it was saved, clear, and restore', async
 test('an archive holds the receipt images, named to match the spreadsheet', async () => {
   // Build this year's archive straight from the app's own code path.
   await page.goto('/#/reports');
-  const names = await page.evaluate(async () => {
-    const { buildArchive } = await import('/src/export/archive.ts');
-    const { getState } = await import('/src/store.ts');
+  const bytes = await page.evaluate(async () => {
+    const archive = '/src/export/archive.ts';
+    const store = '/src/store.ts';
+    const { buildArchive } = await import(/* @vite-ignore */ archive);
+    const { getState } = await import(/* @vite-ignore */ store);
     const s = getState();
-    const blob = await buildArchive({ year: new Date().getFullYear(), receipts: s.receipts, properties: s.properties, vendors: s.vendors });
-    const JSZip = (await import('jszip')).default;
-    return Object.keys((await JSZip.loadAsync(await blob.arrayBuffer())).files);
+    const blob: Blob = await buildArchive({ year: new Date().getFullYear(), receipts: s.receipts, properties: s.properties, vendors: s.vendors });
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
   });
+  const names = Object.keys((await JSZip.loadAsync(Buffer.from(bytes))).files);
   const images = names.filter((n) => n.startsWith('receipts/') && n.endsWith('.jpg'));
   expect(images.length).toBe(3);
   expect(images.some((n) => new RegExp(`receipts/${YEAR}-03-03_The-Home-Depot_[0-9A-F]{8}_p1\\.jpg`).test(n))).toBe(true);
