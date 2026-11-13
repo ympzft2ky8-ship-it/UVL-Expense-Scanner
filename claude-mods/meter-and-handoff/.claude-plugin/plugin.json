@@ -1,0 +1,7 @@
+{
+  "name": "meter-and-handoff",
+  "version": "0.1.0",
+  "description": "Shows how full the chat's context is and, at 85%, hands the work off to a fresh chat session with a written brief.",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

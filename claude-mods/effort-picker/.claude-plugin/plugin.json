@@ -1,0 +1,7 @@
+{
+  "name": "effort-picker",
+  "version": "0.1.0",
+  "description": "Sizes up each request you send and sets Claude's effort level to match it (low to xhigh; max only when you ask).",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

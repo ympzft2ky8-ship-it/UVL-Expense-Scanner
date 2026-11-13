@@ -1,0 +1,16 @@
+{
+  "name": "uvl-claude-mods",
+  "owner": { "name": "Urban Vibes Living" },
+  "plugins": [
+    {
+      "name": "effort-picker",
+      "source": "./claude-mods/effort-picker",
+      "description": "Sizes up each request and sets Claude's effort level to match."
+    },
+    {
+      "name": "meter-and-handoff",
+      "source": "./claude-mods/meter-and-handoff",
+      "description": "Context meter; hands the work off to a fresh session at 85% full."
+    }
+  ]
+}
